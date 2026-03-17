@@ -8,13 +8,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.colorbar import ColorbarBase
 from matplotlib.colors import Normalize
 from natsort import natsort_keygen, natsorted
 
 
 def slide_qc_data(adata: ad.anndata, slides: dict, data_dir: str = None):
     """
-    Create a dataframe with metadata columns per slide and fov
+    Use the fov_positions file to create a dataframe with metadata columns per slide
+    and fov, and store this in adata.uns["fov_metadata"].
+    Additional adds columns to adata.obs reflecting the distance from the cell to the
+    camera's FOV edge.
 
     Args:
         adata: the adata object generated using slides
@@ -71,21 +75,66 @@ def slide_qc_data(adata: ad.anndata, slides: dict, data_dir: str = None):
     fov_df["meanCellSize"] = (
         adata.obs.groupby("slide-fov")["Area.um2"].sum() / fov_df["nCell"]
     )
-
     slidefov2passfail = adata.obs.groupby("slide-fov")["qcFlagsFOV"].first().to_dict()
     fov_df = fov_df.reset_index()
     fov_df["Failed_AtoMX_QC"] = (
         fov_df["slide-fov"].replace(slidefov2passfail).replace({"Pass": 0, "Fail": 1})
     )
+    adata.uns["fov_metadata"] = fov_df
 
-    return fov_df
+    # determine the dimensions of the camera's FOV
+    dim_x_px, dim_y_px = fov_dimensions(fov_df)
+    adata.uns["fov_dims_px"] = {"x": dim_x_px, "y": dim_y_px}
+
+    # compute the distance of each cell to the nearest edge along the x- and y-axis
+    if "dist2edge_px" not in adata.obs.columns:
+        adata.obs["x2edge_px"] = np.minimum(
+            adata.obs["CenterX_local_px"], dim_x_px - adata.obs["CenterX_local_px"]
+        )
+        adata.obs["y2edge_px"] = np.minimum(
+            adata.obs["CenterY_local_px"], dim_y_px - adata.obs["CenterY_local_px"]
+        )
+        adata.obs["dist2edge_px"] = np.minimum(
+            adata.obs["x2edge_px"], adata.obs["y2edge_px"]
+        )
 
 
-def slide_qc_plots(fov_df):
+def fov_dimensions(fov_df):
+    dx = []
+    dy = []
+    for slide in sorted(fov_df["slide"].unique()):
+        last_x = None
+        last_y = None
+        df = fov_df[fov_df["slide"] == slide].sort_values("fov")
+        for fov, row in df.iterrows():
+            x, y = row["x"], row["y"]
+            if last_x is None:
+                pass
+            else:
+                # compute dx if the fov only changed along the x-axis
+                # compute dy if the fov changed along the y-axis
+                if y == last_y:
+                    _dx = abs(x - last_x)
+                    dx.append(_dx)
+                else:
+                    _dy = abs(y - last_y)
+                    dy.append(_dy)
+            last_x = x
+            last_y = y
+    # median distance between 2 FOVs in pixels
+    x_px = sorted(dx)[len(dx) // 2]
+    y_px = sorted(dy)[len(dy) // 2]
+    return x_px, y_px
+
+
+def slide_qc_plots(adata, columns=None):
     """
     Plot the values from each QC column in fov_df on the slide layout.
     Manually add columns to the dataframe for additional plots.
     """
+    fov_df = adata.uns["fov_metadata"]
+    if columns is not None:
+        fov_df = fov_df[columns]
     for col in ["slide", "x", "y"]:
         if col not in fov_df.columns:
             raise ValueError(f"column={col} is required")
@@ -151,6 +200,83 @@ def slide_qc_plots(fov_df):
 
     # return the plot elements for manual post-processing
     return fig_axs_list
+
+
+def plot_fov_edge_distances(
+    adata,
+    figsize=(12, 6),
+    subplot_kwargs=None,
+    # plot_kwargs=None,
+):
+    bins = 50
+    cmap = "Blues"
+    color1 = "dodgerblue"
+    color2 = "limegreen"
+    if subplot_kwargs is None:
+        subplot_kwargs = {}
+    # if plot_kwargs is None:
+    #     plot_kwargs = {}
+
+    fig, axs = plt.subplots(
+        ncols=3,
+        gridspec_kw={"width_ratios": [1, 1, 0.05]},
+        constrained_layout=True,
+        figsize=figsize,
+        **subplot_kwargs,
+    )
+    x, y = adata.uns["fov_dims_px"].values()
+    fig.suptitle(
+        "Distributions of cell distances to the edge of the camera's FOV "
+        + f"({x}x{y} pixels)"
+    )
+
+    # 1D histplot
+    sns.histplot(
+        np.log1p(adata.obs["dist2edge_px"]),
+        bins=bins,
+        stat="percent",
+        color=color1,
+        ax=axs[0],
+        alpha=0.5,
+    )
+    axs[0].set_title("Minimum distance to the FOV edge")
+    axs[0].set_xlabel("log1p(pixels)", color=color1)
+    axs[0].set_ylabel("% of cells")
+    axs01 = axs[0].twiny()
+    sns.histplot(
+        adata.obs["dist2edge_px"],
+        bins=bins,
+        stat="percent",
+        color=color2,
+        ax=axs01,
+        alpha=0.5,
+    )
+    axs01.set_xlabel("pixels", color=color2)
+    axs[0].set_zorder(1)
+    axs01.set_zorder(0)
+    axs[0].patch.set_alpha(0)  # background transparency
+
+    # 2D histplot
+    sns.histplot(
+        x=adata.obs["x2edge_px"],
+        y=adata.obs["y2edge_px"],
+        cmap=cmap,
+        cbar=False,
+        ax=axs[1],
+    )
+    axs[1].set_title("2D distance to FOV edge")
+    axs[1].set_xlabel("Pixels along the x-axis")
+    axs[1].set_ylabel("Pixels along the y-axis")
+
+    # colormap
+    norm = Normalize(
+        vmin=0,
+        vmax=max(adata.obs["x2edge_px"].max(), adata.obs["y2edge_px"].max()),
+    )
+    ColorbarBase(axs[2], cmap=cmap, norm=norm)
+    axs[2].set_ylabel("Number of cells")
+
+    return fig, axs
 
 
 def violin(

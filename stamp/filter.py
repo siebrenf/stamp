@@ -74,6 +74,11 @@ def filter_cells(
     """
     if filter_columns is None:
         filter_columns = []
+    else:
+        for col in filter_columns:
+            if adata.obs[col].dtype != bool:
+                raise TypeError(f"filter_column '{col}' must have a boolean dtype")
+        filter_columns = [adata.obs[col] for col in filter_columns]
     adata.strings_to_categoricals()
 
     falsecode_filter = ~(adata.obs["nCount_falsecode"] >= max_falsecode)

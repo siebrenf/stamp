@@ -55,27 +55,27 @@ def slide_qc_data(adata: ad.anndata, slides: dict, data_dir: str = None):
     ).set_index("slide-fov")
 
     # Add additional metadata columns
-    fov_df["nCounts"] = adata.obs.groupby("slide-fov")["nCount_RNA"].sum()
+    fov_df["nCounts"] = adata.obs.groupby("slide-fov",observed=True)["nCount_RNA"].sum()
     fov_df = pd.merge(
         left=fov_df,
         right=adata.obs["slide-fov"].value_counts().rename("nCell"),
         on="slide-fov",
     )
     fov_df["meanCountsPerCell"] = fov_df["nCounts"] / fov_df["nCell"]
-    fov_df["nCount_negprobes"] = adata.obs.groupby("slide-fov")[
+    fov_df["nCount_negprobes"] = adata.obs.groupby("slide-fov",observed=True)[
         "nCount_negprobes"
     ].sum()
     fov_df["mean_NegProbe-CountsPerCell"] = fov_df["nCount_negprobes"] / fov_df["nCell"]
-    fov_df["nCount_falsecode"] = adata.obs.groupby("slide-fov")[
+    fov_df["nCount_falsecode"] = adata.obs.groupby("slide-fov",observed=False)[
         "nCount_falsecode"
     ].sum()
     fov_df["mean_FalseCode-CountsPerCell"] = (
         fov_df["nCount_falsecode"] / fov_df["nCell"]
     )
     fov_df["meanCellSize"] = (
-        adata.obs.groupby("slide-fov")["Area.um2"].sum() / fov_df["nCell"]
+        adata.obs.groupby("slide-fov",observed=False)["Area.um2"].sum() / fov_df["nCell"]
     )
-    slidefov2passfail = adata.obs.groupby("slide-fov")["qcFlagsFOV"].first().to_dict()
+    slidefov2passfail = adata.obs.groupby("slide-fov",observed=False)["qcFlagsFOV"].first().to_dict()
     fov_df = fov_df.reset_index()
     fov_df["Failed_AtoMX_QC"] = (
         fov_df["slide-fov"].replace(slidefov2passfail).replace({"Pass": 0, "Fail": 1})
@@ -441,7 +441,7 @@ def plot_avg_per_pixel(
         # Group and average per coordinate
         df = (
             adata.obs[[column, 'CenterX_local_px', 'CenterY_local_px']]
-            .groupby(['CenterX_local_px', 'CenterY_local_px'])
+            .groupby(['CenterX_local_px', 'CenterY_local_px'],observed=True)
             .mean()
             .reset_index()
         )

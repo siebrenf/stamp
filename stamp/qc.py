@@ -78,7 +78,7 @@ def slide_qc_data(adata: ad.anndata, slides: dict, data_dir: str = None):
     slidefov2passfail = adata.obs.groupby("slide-fov",observed=False)["qcFlagsFOV"].first().to_dict()
     fov_df = fov_df.reset_index()
     fov_df["Failed_AtoMX_QC"] = (
-        fov_df["slide-fov"].replace(slidefov2passfail).replace({"Pass": 0, "Fail": 1})
+        fov_df["slide-fov"].replace(slidefov2passfail).replace({"Pass": 0, "Fail": 1}).astype(int)
     )
     adata.uns["fov_metadata"] = fov_df
 
@@ -133,11 +133,12 @@ def slide_qc_plots(adata, columns=None):
     Manually add columns to the dataframe for additional plots.
     """
     fov_df = adata.uns["fov_metadata"]
-    if columns is not None:
-        fov_df = fov_df[columns]
-    for col in ["slide", "x", "y"]:
+    required_cols = ["slide","x","y"]
+    for col in required_cols:
         if col not in fov_df.columns:
-            raise ValueError(f"column={col} is required")
+            raise ValueError(f"column={col} is required in adata.obs")
+    if columns is not None:
+        fov_df = fov_df[columns + ["slide","x","y"]]
 
     fig_axs_list = []
     # total number of slides
@@ -151,7 +152,7 @@ def slide_qc_plots(adata, columns=None):
         qc_param = col
         norm = Normalize(vmin=fov_df[qc_param].min(), vmax=fov_df[qc_param].max())
 
-        fig, axs = plt.subplots(nrows=1, ncols=ncols, sharex=True, sharey=True)
+        fig, axs = plt.subplots(nrows=1, ncols=ncols, figsize=(3*ncols,6), sharex=True, sharey=True)
         if not isinstance(axs, Iterable):
             axs = [axs]
         # fig.suptitle(qc_param, y=0.875)

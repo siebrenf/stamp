@@ -13,7 +13,7 @@ from matplotlib.colors import Normalize
 from natsort import natsort_keygen, natsorted
 
 
-def slide_qc_data(adata: ad.anndata, slides: dict, data_dir: str = None):
+def slide_qc(adata: ad.anndata, slides: dict, data_dir: str = None):
     """
     Use the fov_positions file to create a dataframe with metadata columns per slide
     and fov, and store this in adata.uns["fov_metadata"].
@@ -198,7 +198,7 @@ def _fov_dimensions(fov_df):
     return x_px, y_px
 
 
-def slide_qc_plots(adata, columns=None, figsize: tuple = None):
+def plot_slide_qc(adata, columns=None, figsize: tuple = None):
     """
     Plot the values from one or QC columns in adata.uns["fov_metadata"] (added by `slide_qc_data()`).
     Specify columns to limit the number of plots.

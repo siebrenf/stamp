@@ -1,4 +1,3 @@
-# imported & instantiated in __init__.py
 class Config(dict):
     def __init__(self):
         super().__init__(
@@ -42,3 +41,6 @@ class Config(dict):
 
     def popitem(self):
         raise NotImplementedError
+
+
+config = Config()

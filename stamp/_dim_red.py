@@ -35,7 +35,7 @@ def dim_red(
     }
 
 
-def scree_plot(adata):
+def plot_scree(adata):
     evr = adata.uns["svd"]["explained_variance_ratio"]
     xs = [i + 1 for i in range(len(evr))]
 

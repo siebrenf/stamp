@@ -154,7 +154,9 @@ def gene_qc(
 
 def gene_qc_postfilter(adata):
     adata.var["nCell_postfilter"] = adata.X.count_nonzero(axis=0)
-    adata.var["pctCell_postfilter"] = 100 * adata.var["nCell_postfilter"] / adata.n_obs
+    adata.var["pctCell_postfilter"] = (
+        100 * adata.var["nCell_postfilter"] / adata.n_obs
+    ).round(2)
 
     if adata.var["nCell"].eq(adata.var["nCell_postfilter"]).all():
         raise ValueError("adata was not filtered")

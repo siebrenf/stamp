@@ -115,6 +115,7 @@ def read_cosmx(
                 obs=obs,
                 var=pd.DataFrame(index=columns),
             )
+
         # write adata object to file
         dirname = os.path.dirname(adata_file)
         basename = os.path.basename(adata_file)

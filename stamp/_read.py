@@ -9,7 +9,21 @@ import scipy.sparse as sp
 from . import config
 
 
-def validate_input(slides, samples_df, data_dir=None):
+def validate_input(slides: dict, samples_df: pd.DataFrame, data_dir: str = None):
+    """
+    Check the contents of the slides dictionary and samples_df for expected keys and
+    columns, respectively.
+
+    Args:
+        slides: a dictionary with the slide number as keys, and a dictionary as values.
+          The value dict must contain keys "exprmat" and "metadata", with should map to
+          matching respective files
+        samples_df: a dataframe with sample metadata
+        data_dir: optional filepath prefix (default: "")
+
+    Returns:
+        None
+    """
     # validate the slides dictionary
     expected_keys = ["exprmat", "metadata", "fov_positions"]
     for slide, d in slides.items():
@@ -44,7 +58,7 @@ def validate_input(slides, samples_df, data_dir=None):
 
 
 def read_cosmx(
-    slides,
+    slides: dict,
     samples_df: pd.DataFrame,
     adata_file: str,
     samples_df_columns: list = None,
@@ -60,16 +74,19 @@ def read_cosmx(
 
     Args:
         slides: a dictionary with the slide number as keys, and a dictionary as values.
-          The value dict must contain keys "exprmat" and "metadata", with should map to matching respective files
+          The value dict must contain keys "exprmat" and "metadata", with should map to
+          matching respective files
         samples_df: a dataframe with sample metadata to be added to adata.obs
         adata_file: filepath to write the adata object to
         samples_df_columns: list of columns in samples_df to add to adata.obs (default: all)
         metadata_df_columns: list of columns in the metadata file to add to adata.obs (default: all)
+        data_dir: optional filepath prefix (default: "")
         overwrite: overwrite existing output (default: True)
+        verbose: provide written feedback (default: True)
         **kwargs: keyword arguments passed to pd.read_csv
 
     Returns:
-        adata: a sparse adata object
+        adata_file
     """
     if data_dir is None:
         data_dir = ""
@@ -78,8 +95,8 @@ def read_cosmx(
             raise NotImplementedError(f"cannot use '{col}' in kwargs")
     if overwrite is False and os.path.exists(adata_file):
         if verbose:
-            print(f"{overwrite=}. Returning preloaded data")
-        return
+            print(f"adata_file already exists and {overwrite=}")
+        return adata_file
 
     adatas = []
     for slide, files in slides.items():
@@ -138,6 +155,8 @@ def read_cosmx(
         ad.experimental.concat_on_disk(adatas, adata_file)
         for f in adatas:
             os.remove(f)
+
+    return adata_file
 
 
 def _add_x(fname, columns, chunksize=50_000, verbose=True, **kwargs):

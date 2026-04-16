@@ -1,12 +1,15 @@
+import anndata as ad
 from pydeseq2.dds import DeseqDataSet
 from pydeseq2.default_inference import DefaultInference
 from pydeseq2.ds import DeseqStats
 
-
 # TODO: pydeseq2 + volcano plot: /bank/experiments/2024-08-sc/03_simple_analyses.ipynb
 
+
 # TODO: make universal
-def pydeseq2(adata, contrast, force_paired=True, control_genes=None, n_cpus=16):
+def pydeseq2(
+    adata: ad.anndata, contrast, force_paired=True, control_genes=None, n_cpus=16
+):
     """
     Runs pyDEseq2 on an adata object.
 
@@ -15,11 +18,23 @@ def pydeseq2(adata, contrast, force_paired=True, control_genes=None, n_cpus=16):
     Contrast must be ["Condition", "A", "B"], with "A" and "B" string values of
     categories in adata.obs["Condition"] that will be compared.
 
-    Returns pandas dataframe with results.
+    Args:
+        adata: adata object
+        contrast:
+        force_paired:
+        control_genes:
+        n_cpus:
+
+    Returns:
+        pd.DataFrame
     """
 
-    donors_a = adata.obs["Donor"].loc[adata.obs["Condition"] == contrast[1]].unique().tolist()
-    donors_b = adata.obs["Donor"].loc[adata.obs["Condition"] == contrast[2]].unique().tolist()
+    donors_a = (
+        adata.obs["Donor"].loc[adata.obs["Condition"] == contrast[1]].unique().tolist()
+    )
+    donors_b = (
+        adata.obs["Donor"].loc[adata.obs["Condition"] == contrast[2]].unique().tolist()
+    )
     fully_paired = set(donors_a) == set(donors_b)
     if fully_paired:
         design = "~Donor + Condition"
@@ -30,7 +45,10 @@ def pydeseq2(adata, contrast, force_paired=True, control_genes=None, n_cpus=16):
             common_donors = list(set(donors_a) & set(donors_b))
             n_common_donors = len(common_donors)
             if n_common_donors < 2:
-                print(f"{n_common_donors} donor(s) in common between groups:\tCannot run analysis")
+                print(
+                    f"{n_common_donors} donor(s) in common between groups: "
+                    "Cannot run analysis"
+                )
                 return None
             else:
                 adata = adata[adata.obs["Donor"].isin(common_donors)].copy()

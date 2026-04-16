@@ -1,4 +1,10 @@
 class Config(dict):
+    """
+    A dictionary with package specific settings that may be altered during runtime.
+    Values may be changed.
+    Keys may not be added or removed.
+    """
+
     def __init__(self):
         super().__init__(
             {

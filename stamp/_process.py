@@ -1,13 +1,23 @@
+from collections.abc import Iterable
+
+import anndata as ad
 import numpy as np
-import scipy.sparse as sp
-import scanpy as sc
 import pandas as pd
+import scanpy as sc
+import scipy.sparse as sp
 from natsort import natsorted
 
 
-def binarize(adata, verbose=True):
+def binarize(adata: ad.anndata, verbose: bool = True):
     """
-    Binarize the values in adata.X.
+    Binarize the values in adata.X
+
+    Args:
+        adata: adata object
+        verbose: provide written feedback (default: True)
+
+    Returns:
+        None: updates adata.layers and adata.X
     """
     if "counts" not in adata.layers:
         adata.layers["counts"] = adata.X.copy()
@@ -28,88 +38,126 @@ def binarize(adata, verbose=True):
 
 
 def knn_count_smoothing(
-        adata,
-        layer_added=None,
-        obms_key=None,
-        neighbours_key=None,
+    adata: ad.anndata,
+    layer_added=None,
+    neighbors_use_rep=None,
+    neighbors_key_added=None,
+    neighbors_kwargs=None,
+    verbose=True,
 ):
     """
-    Compute a per-cell neighborhood average of the binary feature matrix.
+    For each cell, replace its gene vector with the average of its KNN neighborhood.
+
+    Runs sc.pp.neighbors if it has not run.
+    See https://scanpy.readthedocs.io/en/stable/api/generated/scanpy.pp.neighbors.html
+
+    Args:
+        adata: adata object
+        layer_added: key in adata.layers for function output (default: "KNN_binary_mean")
+        neighbors_use_rep: See sc.pp.neighbors for details
+        neighbors_key_added: See sc.pp.neighbors for details
+        neighbors_kwargs: kwargs passed to sc.pp.neighbors
+        verbose: provide written feedback (default: True)
+
+    Returns:
+        None: updates adata.layers and adata.X
     """
     layer = "binary"
     if layer not in adata.layers:
         raise KeyError(
-            f"{layer=} not found in adata.layers. "
-            "Please run st.pp.binarize first!"
+            f"{layer=} not found in adata.layers. Please run st.pp.binarize first!"
         )
 
-    if obms_key is None:
-        obms_key = "X_svd"
-    if obms_key != "X" and obms_key not in adata.obsm:
+    if neighbors_use_rep is None:
+        neighbors_use_rep = "X_svd"
+    if neighbors_use_rep != "X" and neighbors_use_rep not in adata.obsm:
         raise KeyError(
-            f"{obms_key=} not found in adata.obsm. "
+            f"{neighbors_use_rep=} not found in adata.obsm. "
             "Please run st.pp.dim_red (or a similar function) first!"
         )
-    if neighbours_key is None:
-        neighbours_key = "neighbors_svd"
-    connectivities = f"{neighbours_key}_connectivities"
+
+    if neighbors_key_added is None:
+        neighbors_key_added = "neighbors_svd"
+    if neighbors_kwargs is None:
+        neighbors_kwargs = {}
+    connectivities = f"{neighbors_key_added}_connectivities"
     if connectivities not in adata.obsp:
+        if verbose:
+            print("running sc.pp.neighbors")
         sc.pp.neighbors(
             adata,
-            use_rep=obms_key,
-            key_added=neighbours_key,
+            use_rep=neighbors_use_rep,
+            key_added=neighbors_key_added,
+            **neighbors_kwargs,
         )
 
-    # create connectivity map
-    knn = adata.obsp[connectivities].copy()
-    knn.data = np.ones_like(knn.data)
-    knn.setdiag(1)
-    # print(type(knn), knn.shape, knn.dtype)
-
-    # number of neighbours per cell
-    deg = np.asarray(knn.sum(axis=1))
-    # print(type(deg), deg.shape, deg.dtype)
-
-    # normalize
-    knn = knn.multiply(1 / deg)
-    # print(type(knn), knn.shape, knn.dtype)
-
-    X = adata.layers[layer]
-    # print(type(X), X.shape, X.dtype)
-
-    # apply to all genes
-    data = knn.dot(X)
-    # print(type(data), data.shape, data.dtype)
-
-    # sanity checks
-    assert data.shape == X.shape
-    assert data.dtype == np.float32
-    assert isinstance(data, sp.csr_matrix)
-
     if layer_added is None:
-        layer_added = "KNN_binary_mean"
-    adata.layers[layer_added] = data
+        layer_added = f"KNN_{layer}_mean"
+    if layer_added not in adata.layers:
+        # KNN neighborhood connectivity map
+        knn = adata.obsp[connectivities].copy()
+        knn.data = np.ones_like(knn.data)
+        knn.setdiag(1)  # include self
+
+        # number of neighbors per cell + itself
+        deg = np.asarray(knn.sum(axis=1))
+
+        # row-normalized connectivity map
+        knn = knn.multiply(1 / deg)  # coo_matrix
+
+        # average gene presence across its neighborhood
+        X = adata.layers[layer]
+        data = knn.dot(X)
+
+        # sanity checks
+        assert data.shape == X.shape
+        assert data.dtype == np.float32
+        assert isinstance(data, sp.csr_matrix)
+
+        adata.layers[layer_added] = data
+    elif verbose:
+        print(f"{layer_added} layer already set")
+
+    adata.X = adata.layers[layer_added].copy()
+    if verbose:
+        print(f"{layer_added} layer set as adata.X")
 
 
 def pseudobulk(
-        adata,
-        ctype,
-        ctype_col,
-        sample_col,
-        layer=None,
+    adata: ad.anndata,
+    cluster: str,
+    cluster_column: str,
+    sample_column: str,
+    samples: Iterable = None,
+    layer: str = None,
 ):
     """
-    Generate a pseudobulk table (genes x samples) for all
-    samples in sample_col and the specified ctype in ctype_col.
+    Generate a pseudobulk table (genes x samples) for all samples in the sample_column
+    and the specified cluster in the cluster_column.
+
+    Args:
+        adata: adata object
+        cluster: name of the cluster in cluster_column to aggregate to pseudobulk
+        cluster_column: column in adata.obs
+        sample_column: column in adata.obs
+        samples: samples in the sample columns to use (default: all)
+        layer: layer to aggregate (default: "counts")
+
+    Returns:
+        pd.DataFrame
     """
-    if ctype not in adata.obs[ctype_col].unique():
-        raise ValueError(f"{ctype=} not found in adata.obs['{ctype_col}']")
+    if cluster not in adata.obs[cluster_column].unique():
+        raise ValueError(f"{cluster=} not found in adata.obs['{cluster_column}']")
+    if layer is None:
+        layer = "counts"
+
     sample2counts = {}
-    adata_sub = adata[adata.obs[ctype_col] == ctype]
-    for sample in natsorted(adata_sub.obs[sample_col].unique()):
-        obj = adata_sub[adata_sub.obs[sample_col] == sample]
-        X = obj.layers[layer] if layer else obj.X
+    adata_sub = adata[adata.obs[cluster_column] == cluster]
+    if samples is None:
+        samples = natsorted(adata_sub.obs[sample_column].unique())
+    for sample in samples:
+        X = adata_sub[adata_sub.obs[sample_column] == sample].layers[layer]
         sample2counts[sample] = X.sum(axis=0).A1
 
-    pseudobulk_df = pd.DataFrame(sample2counts, index=adata_sub.var_names)
+    pseudobulk_df = pd.DataFrame(data=sample2counts, index=adata_sub.var_names)
     return pseudobulk_df

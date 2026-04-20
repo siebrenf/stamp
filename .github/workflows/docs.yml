@@ -22,6 +22,7 @@ jobs:
       id-token: write
     steps:
     - id: deployment
-      uses: sphinx-notes/pages@v3
+      uses: siebrenf/pages@patch-1  # sphinx-notes/pages@v3
       with:
         python_version: 3.12
+        installer: uv

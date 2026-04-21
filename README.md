@@ -19,7 +19,7 @@ Work in progress.
 
 ### Pip/Conda
 
-This package is not available on pip/conda yet.
+`stampede` is not yet available on pip/conda.
 
 
 
@@ -53,4 +53,4 @@ Check out [our GitHub pages](https://siebrenf.github.io/stampede/index.html)!
 
 ## Usage
 
-Follow along with `tutorial.ipynb`
+Follow along with `tutorial.ipynb`!

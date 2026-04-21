@@ -1,8 +1,8 @@
-=============
-Stamp package
-=============
+========
+STAMPede
+========
 
-Better name pending
+STAMP data Exploration and Differential Expression
 
 Contents
 ========

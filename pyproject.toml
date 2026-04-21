@@ -29,10 +29,14 @@ dependencies = [
     "scikit-learn",
     "scipy",
     "seaborn",
-    "statsmodels",
 ]
 
 [project.optional-dependencies]
+tools = [
+    "geosketch",
+    "pydeseq2",
+    "statsmodels",
+]
 docs = [
     "sphinx",
     "sphinx-rtd-theme",

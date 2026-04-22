@@ -3,8 +3,6 @@
 [![Documentation](https://github.com/siebrenf/stampede/actions/workflows/docs.yml/badge.svg)](https://github.com/siebrenf/stampede/actions/workflows/docs.yml)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-![STAMPede logo](docs/img/logo_no_bg.png  = 640x400)
-
 Process & analyse [STAMP data](https://doi.org/10.1016/j.cell.2025.05.027) with ease!
 STAMPede is built to handle huge datasets with shallow depth, using syntax familiar to `scanpy` users. 
 
@@ -53,16 +51,16 @@ pip install -e stampede
 
 ## Documentation
 
-Check out [our GitHub pages](https://siebrenf.github.io/stampede/index.html)!
+Check out our [GitHub pages](https://siebrenf.github.io/stampede/index.html)!
 
 
 
 ## Usage
 
-Follow along with `tutorial.ipynb`!
+Follow along with the [tutorial.ipynb](tutorial.ipynb)!
 
 
 
-# Citation
+## Citation
 
-If you used STAMPede in your work, please cite it (TODO: add DOI)
+If you used STAMPede in your work, please cite it.

@@ -3,13 +3,14 @@ from __future__ import annotations
 import warnings
 
 import anndata as ad
-import matplotlib.figure
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from adjustText import adjust_text
 from matplotlib import patheffects
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 
 def paired_binomial_glm(
@@ -20,6 +21,7 @@ def paired_binomial_glm(
     reference_condition: str,
     condition_column: str = "condition",
     covariate_columns: str = None,
+    random_state: int = 42,
 ) -> pd.DataFrame | None:
     """
     Runs paired donor-level binomial GLM:
@@ -34,6 +36,7 @@ def paired_binomial_glm(
         reference_condition: the baseline condition (e.g., "control")
         condition_column: column with the condition
         covariate_columns: column(s) with covariates (e.g. "donor")
+        random_state: random seed value
 
     Returns:
         per-gene results including beta, odds_ratio, pval, padj
@@ -44,16 +47,41 @@ def paired_binomial_glm(
     from statsmodels.stats.multitest import multipletests  # noqa
     from statsmodels.tools.sm_exceptions import PerfectSeparationWarning  # noqa
 
-    df = df.copy().stack().reset_index()
+    df = df.stack().reset_index()
     df.columns = ["gene", samples_column, "detection_rate"]
+    df[samples_column] = df[samples_column].astype(str)
 
-    subset = adata.obs[[samples_column, condition_column]]
-    sample2condition = subset.set_index(samples_column)[condition_column].to_dict()
+    # add the conditions per sample
+    sample2condition = (
+        adata.obs[[samples_column, condition_column]]
+        .set_index(samples_column)[condition_column]
+        .astype(str)
+        .to_dict()
+    )
     df[condition_column] = df[samples_column].map(sample2condition)
 
-    sample2ncells = adata.obs[samples_column].value_counts().to_dict()
-    df["ncells"] = df[samples_column].replace(sample2ncells)
+    # drop all samples not in adata
+    df.dropna(subset=[condition_column], inplace=True)
 
+    # add the number of cells per sample
+    sample2ncells = adata.obs[samples_column].value_counts().astype(str).to_dict()
+    df["ncells"] = df[samples_column].replace(sample2ncells).astype(int)
+
+    # add all covariate columns
+    if covariate_columns is None:
+        covariate_columns = []
+    elif isinstance(covariate_columns, str):
+        covariate_columns = [covariate_columns]
+    for col in covariate_columns:
+        sample2covariate = (
+            adata.obs[[samples_column, col]]
+            .set_index(samples_column)[col]
+            .astype(str)
+            .to_dict()
+        )
+        df[col] = df[samples_column].map(sample2covariate)
+
+    # convert all metadata columns to categorical
     string_cols = df.select_dtypes(include="object").columns
     df[string_cols] = df[string_cols].astype("category")
 
@@ -71,17 +99,6 @@ def paired_binomial_glm(
         ordered=True,
     )
     df.dropna(subset=condition_column, inplace=True)
-
-    if covariate_columns is None:
-        covariate_columns = []
-    elif isinstance(covariate_columns, str):
-        covariate_columns = [covariate_columns]
-
-    # add all covariate columns and
-    # ensure all batch and covariate columns are categorical
-    for col in covariate_columns:
-        s2c = subset.set_index(samples_column)[col].to_dict()
-        df[col] = df[samples_column].map(s2c).astype(str).astype("category")
 
     design_formula = "detection_rate ~ " + " + ".join(
         [condition_column] + covariate_columns
@@ -126,7 +143,6 @@ def paired_binomial_glm(
             )
 
         except Exception as exc:
-            print(exc)  # TODO: replace exception and remove print
             return pd.Series(
                 {
                     "beta": np.nan,
@@ -139,6 +155,7 @@ def paired_binomial_glm(
             )
 
     # run across genes
+    np.random.seed(random_state)
     results = (
         df.groupby("gene", group_keys=False, observed=False)
         .apply(fit_one_gene, include_groups=False)
@@ -176,16 +193,16 @@ def plot_paired_binomial_glm_volcano(
     subplot_kwargs: dict = None,
     plot_kwargs: dict = None,
     text_kwargs: dict = None,
-) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+) -> tuple[Figure, Axes]:
     """
     Generate a volcano plot from the detection_rates results dataframe.
 
     Args:
         df: a dataframe
         drop_perfect_separation: whether to drop the genes with perfect separations
-        pval_thresh: threshold pvalue_column for points to be significant
+        pval_thresh: threshold pvalue_column for genes to be significant
         or_thresh: threshold for the log2 odds ratios to be considered significant
-        to_label: the number of top down and up genes to be labeled
+        to_label: the number of top genes (down and up each) to be labeled
         subplot_kwargs: kwargs passed to plt.subplots
         plot_kwargs: kwargs passed to the main plotting function
         text_kwargs: kwargs passed to ax.text
@@ -205,66 +222,14 @@ def plot_paired_binomial_glm_volcano(
     pvalue_column = "padj"
     separation_column = "perfect_separation"
 
-    df = df.copy().dropna(subset=[pvalue_column, or_column, separation_column])
+    df = df.dropna(subset=[pvalue_column, or_column, separation_column])
+    if drop_perfect_separation:
+        df = df.loc[~df[separation_column]]
 
     if df[pvalue_column].min() == 0:
         df[pvalue_column][df[pvalue_column] == 0] = 1e-9
-
-    # rng = np.random.default_rng(42)
-    #
-    # # p_cutoff = 0.05 #Before -log10!
-    # or_cutoff = np.log2(or_cutoff)  # After log2!
-
-    # n_txt = 30  # Number of genes names to plot
-    # n_hior = 30  # Number of genes with highest ORs to add to the names to be plotted if not already included in the most significant ones.
-    #
-    # upregs = []
-    # downregs = []
-
-    if drop_perfect_separation:
-        df = df.loc[~df[separation_column]]
-    # else:
-    #     nps_or = df.loc[~df[separation_column], or_column]
-    #     df.loc[df[separation_column] & (df[or_column] > 1), or_column] = (
-    #         nps_or.max() * 1.1
-    #     )
-    #     df.loc[df[separation_column] & (df[or_column] < 1), or_column] = (
-    #         nps_or.min() * 0.9
-    #     )
-
     df["-log10(padj)"] = -np.log10(df[pvalue_column])
     df["log2(odds_ratio)"] = np.log2(df[or_column])
-    # if len(up) > n_txt:
-    #     top_up = up[:n_txt]
-    # else:
-    #     top_up = up
-    # top_up += [
-    #     gene
-    #     for gene in list(
-    #         df.loc[
-    #             (df[pvalue_column] <= p_cutoff) & (df["log2(odds_ratio)"] >= or_cutoff)
-    #         ]
-    #         .sort_values(by="log2(odds_ratio)", ascending=False)["Gene"]
-    #         .head(n_hior)
-    #     )
-    #     if gene not in top_up
-    # ]
-
-    # if len(down) > n_txt:
-    #     top_down = down[:n_txt]
-    # else:
-    #     top_down = down
-    # top_down += [
-    #     gene
-    #     for gene in list(
-    #         df.loc[
-    #             (df[pvalue_column] <= p_cutoff) & (df["log2(odds_ratio)"] <= or_cutoff)
-    #         ]
-    #         .sort_values(by="log2(odds_ratio)", ascending=True)["Gene"]
-    #         .head(n_hior)
-    #     )
-    #     if gene not in top_down
-    # ]
 
     symbol2dir = {gene: "no change" for gene in df[gene_column]}
     up = (
@@ -302,33 +267,8 @@ def plot_paired_binomial_glm_volcano(
     ax.axhline(-np.log10(pval_thresh), color="black", linestyle="--", linewidth=0.5)
     ax.axvline(or_thresh, color="black", linestyle="--", linewidth=0.5)
     ax.axvline(-or_thresh, color="black", linestyle="--", linewidth=0.5)
-
-    # ax.spines["top"].set_visible(False)
-    # ax.spines["right"].set_visible(False)
-    # ax.spines["bottom"].set_visible(False)
-    # ax.spines["left"].set_visible(False)
-    #
-    # ax.get_legend().remove()
-
-    # ax.set_ylim(0, ax.get_ylim()[1])
-    # xlim_max = max(abs(lim) for lim in ax.get_xlim())
-    # ax.set_xlim(-xlim_max, xlim_max)
-
-    # texts = []
-    # for gene in top_up + top_down:
-    #     x, y = df.loc[df["Gene"] == gene][
-    #         ["log2(odds_ratio)", "-log(Padj)"]
-    #     ].iloc[0, 0:2]
-    #     x += rng.uniform(-0.01, 0.01)
-    #     y += rng.uniform(-0.01, 0.01)
-    #     texts.append(ax.text(x=x, y=y, s=gene, fontdict={"fontsize": 8}))
-    # adjust_text(
-    #     texts,
-    #     arrowprops=dict(arrowstyle="-", color="gray"),
-    #     force_explode=(0.3, 0.8),
-    #     expand=[1.8, 1.2],
-    #     max_move=(3600, 3600),
-    # )  # ,only_move={"text":"y+x+-"})
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
 
     df["sorter"] = (
         df["-log10(padj)"] * df["log2(odds_ratio)"]
@@ -350,6 +290,10 @@ def plot_paired_binomial_glm_volcano(
         )
         txt.set_path_effects([patheffects.withStroke(linewidth=3, foreground="w")])
         texts.append(txt)
-    adjust_text(texts, arrowprops=dict(arrowstyle="-", color="k", zorder=5))
+    _ = adjust_text(
+        texts,
+        arrowprops=dict(arrowstyle="-", color="gray", zorder=5),
+        ax=ax,
+    )
 
     return fig, ax

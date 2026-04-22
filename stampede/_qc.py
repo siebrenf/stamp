@@ -5,14 +5,15 @@ import os
 from collections.abc import Iterable
 
 import anndata as ad
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 import seaborn as sns
+from matplotlib.axes import Axes
 from matplotlib.colorbar import ColorbarBase
 from matplotlib.colors import Normalize
+from matplotlib.figure import Figure
 from matplotlib.typing import ColorType
 from natsort import natsort_keygen, natsorted
 
@@ -233,7 +234,7 @@ def plot_slide_qc(
     figsize: tuple = None,
     subplot_kwargs: dict = None,
     plot_kwargs: dict = None,
-) -> tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]:
+) -> tuple[Figure, list[Axes]]:
     """
     Plot the values from one or QC columns in adata.uns["fov_metadata"]
     (added by `slide_qc_data()`).
@@ -428,7 +429,7 @@ def plot_2d_correlations(
     figsize: tuple = (8, 7),
     subplot_kwargs: dict = None,
     plot_kwargs: dict = None,
-) -> tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]:
+) -> tuple[Figure, list[Axes]]:
     """
     Plot the distributions and 2D correlation between two columns in adata.obs.
 
@@ -567,7 +568,7 @@ def plot_avg_per_pixel(
     figsize: tuple = (20, 15),
     subplot_kwargs: dict = None,
     plot_kwargs: dict = None,
-) -> tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]:
+) -> tuple[Figure, list[Axes]]:
     """
     Plot the average values of the given column over all FOVs.
     Color's the cell's center pixel, unless fill_cell_area is set to True (slow).
@@ -710,7 +711,7 @@ def plot_violin(
     log_scale: tuple[bool, bool] = (False, True),
     subplot_kwargs: dict = None,
     plot_kwargs: dict = None,
-) -> tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]:
+) -> tuple[Figure, list[Axes]]:
     """
     Violin plots for one or more columns in adata.obs.
 
@@ -778,7 +779,7 @@ def plot_ncell_per_condition(
     subplot_kwargs: dict = None,
     plot_kwargs: dict = None,
     text_kwargs: dict = None,
-) -> tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]:
+) -> tuple[Figure, list[Axes]]:
     """
     Plot the number of cells per condition in a column in adata.obs.
 
@@ -890,7 +891,7 @@ def plot_value_distribution(
     max_quantile: float = 0.95,
     subplot_kwargs: dict = None,
     plot_kwargs: dict = None,
-) -> tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]:
+) -> tuple[Figure, list[Axes]]:
     """
     Plot the number of occurrences of values in the dataset.
 
@@ -951,7 +952,7 @@ def plot_column_distribution(
     max_quantile: float = 0.95,
     subplot_kwargs: dict = None,
     plot_kwargs: dict = None,
-) -> tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]:
+) -> tuple[Figure, list[Axes]]:
     """
     Plot the distribution of values for a column present in either adata.obs or
     adata.var.

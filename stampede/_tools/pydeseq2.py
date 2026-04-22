@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import anndata as ad
-import matplotlib.figure
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from adjustText import adjust_text
 from matplotlib import patheffects
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 if TYPE_CHECKING:
     from pydeseq2.dds import DeseqDataSet
@@ -94,7 +95,7 @@ def plot_pydeseq2_volcano(
     subplot_kwargs: dict = None,
     plot_kwargs: dict = None,
     text_kwargs: dict = None,
-) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+) -> tuple[Figure, Axes]:
     """
     Generate a volcano plot from a pyDESeq2 results dataframe.
 

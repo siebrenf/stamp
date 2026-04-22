@@ -3,11 +3,12 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 import anndata as ad
-import matplotlib
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from matplotlib.typing import ColorType
 from sklearn.decomposition import TruncatedSVD
 
@@ -75,9 +76,7 @@ def dim_red(
     }
 
 
-def plot_scree(
-    adata: ad.AnnData, obsm_key: str = None
-) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+def plot_scree(adata: ad.AnnData, obsm_key: str = None) -> tuple[Figure, Axes]:
     """
     Scree plot
 
@@ -116,7 +115,7 @@ def plot_dim_red(
     n_dims: int = 6,
     subset_size: int = 1_000,
     random_state: int = 42,
-) -> list[tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]]:
+) -> list[tuple[Figure, Axes]]:
     """
     Scree plot
 

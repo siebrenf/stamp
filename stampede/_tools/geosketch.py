@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import anndata as ad
-import matplotlib.figure
 import scanpy as sc
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 
 def sketch(
@@ -50,7 +51,7 @@ def plot_sketch(
     obs_column: str = "subset",
     use_rep: str = "X_svd",
     plot_kwargs: dict = None,
-) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+) -> tuple[Figure, Axes]:
     """
     Scatterplot highlighting the cells that were sampled.
     Requires the full adata object.

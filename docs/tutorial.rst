@@ -2,4 +2,7 @@
 Tutorial
 ========
 
-https://github.com/siebrenf/stampede/blob/main/tutorial.ipynb
+.. toctree::
+   :maxdepth: 0
+
+   notebooks/tutorial.ipynb

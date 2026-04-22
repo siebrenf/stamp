@@ -37,14 +37,16 @@ tools = [
     "statsmodels",
 ]
 docs = [
-    "sphinx",
-    "sphinx-rtd-theme",
     "m2r2 >=0.3.2",
+    "myst-nb",
+    "pydata-sphinx-theme >=0.17.1",
+    "sphinx",
+    "sphinx-autodoc-typehints",
 ]
 test = [
     "black",
-    "isort",
     "ipykernel",
+    "isort",
     "pytest",
 ]
 

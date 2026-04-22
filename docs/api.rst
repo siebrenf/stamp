@@ -39,3 +39,9 @@ Configuration
 
 .. autodata:: stampede.config
    :annotation:
+
+Default config items:
+
+.. literalinclude::  ../stampede/_config.py
+   :lines: 11-20
+   :dedent:

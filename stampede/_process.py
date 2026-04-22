@@ -41,11 +41,11 @@ def binarize(adata: ad.AnnData, verbose: bool = True) -> None:
 
 def knn_count_smoothing(
     adata: ad.AnnData,
-    layer_added=None,
-    neighbors_use_rep=None,
-    neighbors_key_added=None,
-    neighbors_kwargs=None,
-    verbose=True,
+    layer_added: str = None,
+    neighbors_use_rep: str = None,
+    neighbors_key_added: str = None,
+    neighbors_kwargs: dict = None,
+    verbose: bool = True,
 ) -> None:
     """
     For each cell, replace its gene vector with the average of its KNN neighborhood.

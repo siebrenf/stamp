@@ -144,19 +144,19 @@ def gene_qc(
     Returns:
         Nothing, updates adata.var
     """
-    if "is_negctrl" not in adata.var or overwrite:
+    if "is_negctrl" not in adata.var.columns or overwrite:
         adata.var["is_negctrl"] = adata.var_names.str.startswith("Negative")
-    if "is_sysctrl" not in adata.var or overwrite:
+    if "is_sysctrl" not in adata.var.columns or overwrite:
         adata.var["is_sysctrl"] = adata.var_names.str.startswith("System")
-    if "nCell" not in adata.var or overwrite:
+    if "nCell" not in adata.var.columns or overwrite:
         # number of nonzero cells per gene
         adata.var["nCell"] = (adata.X > 0).sum(axis=0).A1
         adata.var["pctCell"] = 100 * adata.var["nCell"] / adata.n_obs
-    if "nTranscript" not in adata.var or overwrite:
+    if "nTranscript" not in adata.var.columns or overwrite:
         adata.var["nTranscript"] = np.array(adata.X.sum(axis=0)).ravel()
-    if "meanTranscript" not in adata.var or overwrite:
+    if "meanTranscript" not in adata.var.columns or overwrite:
         adata.var["meanTranscript"] = adata.var["nTranscript"] / adata.n_obs
-    if "signal2noise" not in adata.var or overwrite:
+    if "signal2noise" not in adata.var.columns or overwrite:
         if signal2noise_threshold is None:
             negctrls = adata.var.loc[adata.var["is_negctrl"], "meanTranscript"]
             signal2noise_threshold = negctrls.mean() + mult * negctrls.std()
@@ -600,7 +600,7 @@ def plot_avg_per_pixel(
     x_max = adata.uns["fov_dims_px"]["x"]
     y_max = adata.uns["fov_dims_px"]["y"]
     grid = np.full((y_max, x_max), 0.0)
-    if fill_cell_area is False:
+    if not fill_cell_area:
         # Group and average per coordinate
         df = (
             adata.obs[[column, "CenterX_local_px", "CenterY_local_px"]]
@@ -969,9 +969,9 @@ def plot_column_distribution(
         matplotlib figure and array of axes
     """
     if axis is None:
-        if column in adata.obs:
+        if column in adata.obs.columns:
             axis = 0
-        elif column in adata.var:
+        elif column in adata.var.columns:
             axis = 1
         else:
             raise IndexError(f"{column=} not found in adata.obs or var")

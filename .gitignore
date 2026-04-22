@@ -4,4 +4,4 @@ __pycache__
 .venv
 adatas
 _build
-build
+jupyter_execute

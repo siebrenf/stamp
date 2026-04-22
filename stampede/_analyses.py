@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import TYPE_CHECKING
 
 import anndata as ad
 import matplotlib.figure
@@ -12,20 +13,22 @@ import seaborn as sns
 from adjustText import adjust_text
 from matplotlib import patheffects
 
+if TYPE_CHECKING:
+    from pydeseq2.dds import DeseqDataSet
+    from pydeseq2.ds import DeseqStats
+    from pydeseq2.inference import Inference
+
 
 def pydeseq2(
     adata: ad.AnnData,
     design: str,
     contrast: list,
-    inference: "pydeseq2.inference.Inference" = None,  # noqa
+    inference: Inference = None,
     n_cpus: int = 16,
     return_objects: bool = False,
     dds_kwargs: dict = None,
     ds_kwargs: dict = None,
-) -> (
-    tuple["pydeseq2.dds.DeseqDataSet", "pydeseq2.ds.DeseqStats", pd.DataFrame]
-    | pd.DataFrame
-):
+) -> tuple[DeseqDataSet, DeseqStats, pd.DataFrame] | pd.DataFrame:
     """
     Wrapper around pyDEseq2 for adata objects.
 
@@ -239,13 +242,15 @@ def sketch(
 
     if return_subset:
         return adata[adata.obs[obs_column], :].copy()
+    else:
+        return None
 
 
 def plot_sketch(
-    adata,
+    adata: ad.AnnData,
     obs_column: str = "subset",
-    use_rep="X_svd",
-    plot_kwargs=None,
+    use_rep: str = "X_svd",
+    plot_kwargs: dict = None,
 ) -> tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]:
     """
     Scatterplot highlighting the cells that were sampled.
@@ -272,7 +277,7 @@ def plot_sketch(
 
 
 def paired_binomial_glm(
-    df,
+    df: pd.DataFrame,
     test_condition: str,
     reference_condition: str,
     condition_column: str = "condition",
@@ -280,7 +285,7 @@ def paired_binomial_glm(
     detection_column: str = "detection_rate",
     covariate_columns: str = None,
     total_column: str = None,
-) -> pd.DataFrame:
+) -> pd.DataFrame | None:
     """
     Runs paired donor-level binomial GLM:
         gene_detection_rate ~ condition + covariate(s)

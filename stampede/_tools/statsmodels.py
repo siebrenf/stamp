@@ -167,7 +167,7 @@ def paired_binomial_glm(
     return results
 
 
-def paired_binomial_glm_volcano(
+def plot_paired_binomial_glm_volcano(
     df: pd.DataFrame,
     drop_perfect_separation: bool = True,
     pval_thresh: float = 0.05,

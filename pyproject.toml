@@ -40,6 +40,7 @@ docs = [
     "m2r2 >=0.3.2",
     "myst-nb",
     "pydata-sphinx-theme >=0.17.1",
+    "pydeseq2",  # for type hinting
     "sphinx",
     "sphinx-autodoc-typehints",
 ]

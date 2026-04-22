@@ -10,9 +10,6 @@ import seaborn as sns
 from adjustText import adjust_text
 from matplotlib import patheffects
 from matplotlib import pyplot as plt
-from pydeseq2.dds import DeseqDataSet
-from pydeseq2.ds import DeseqStats
-from pydeseq2.inference import Inference
 
 if TYPE_CHECKING:
     from pydeseq2.dds import DeseqDataSet

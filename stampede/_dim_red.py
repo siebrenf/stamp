@@ -135,37 +135,39 @@ def plot_scree(adata: ad.AnnData, obsm_key: str = None) -> tuple[Figure, Axes]:
 def plot_dim_red(
     adata: ad.AnnData,
     columns: str | Iterable,
-    obsm_key: str = None,
+    obsm_key: str = "X_svd",
     cmap: ColorType = "tab10",
-    n_dims: int = 6,
+    n_dims: int | tuple = 6,
     subset_size: int = 1_000,
     random_state: int = 42,
 ) -> list[tuple[Figure, Axes]]:
     """
-    Scree plot
+    Grid plot visualizing a range of reduced dimensions.
 
     Args:
         adata: adata object
-        columns: one or more columns in adata.obs to plot. One multiplot per column.
-        obsm_key: key in adata.obsm with dim_red output (default: "X_svd")
+        columns: one or more columns in adata.obs to plot. One multiplot per column
+        obsm_key: key in adata.obsm with dim_red output
         cmap: colormap
-        n_dims: number of PCs to use (default: 50)
+        n_dims: number of dimensions to plot, or a tuple with dimensions
         subset_size: subsample the data to this number (per column)
         random_state: random seed value
 
     Returns:
         a list of tuples with matplotlib figure and axis
     """
-    if obsm_key is None:
-        obsm_key = "X_svd"
-    uns_key = obsm_key.split("_", 1)[1]
-
     cmap = plt.get_cmap(cmap)
     if isinstance(columns, str):
         columns = [columns]
 
     data = adata.obs[columns].copy()
-    data[[str(dim + 1) for dim in range(n_dims)]] = adata.obsm[obsm_key][:, :n_dims]
+    if isinstance(n_dims, int):
+        n_dims = (1, n_dims)
+    dims = list(range(n_dims[0], n_dims[1] + 1))
+    data[[str(dim) for dim in dims]] = adata.obsm[obsm_key][:, dims]
+    n_plots = n_dims[1] - n_dims[0]
+
+    uns_key = obsm_key.split("_", 1)[1]
     evr_array = adata.uns[uns_key]["explained_variance_ratio"]
 
     ret = []
@@ -183,22 +185,19 @@ def plot_dim_red(
         # plot the upper triangle of a cross correlation matrix of PCs
         # excluding the diagonal
         fig, axs = plt.subplots(
-            nrows=n_dims - 1,
-            ncols=n_dims - 1,
-            figsize=(
-                (n_dims - 1) * 3,
-                (n_dims - 1) * 3,
-            ),
+            nrows=n_plots,
+            ncols=n_plots,
+            figsize=(n_plots * 3, n_plots * 3),
             # gridspec_kw={'wspace': 0, 'hspace': 0},
             tight_layout=True,
         )
         fig.suptitle(c, fontweight="bold")
         n = fig._suptitle.get_fontsize()  # noqa
         fig._suptitle.set_fontsize(n + 10)  # noqa
-        for row in range(0, n_dims - 1):
-            row_label = str(row + 1)
-            for col in range(0, n_dims - 1):
-                col_label = str(col + 2)
+        for row in range(0, n_plots):
+            row_label = str(dims[row] + 0)
+            for col in range(0, n_plots):
+                col_label = str(dims[col] + 1)
                 ax = axs[row, col]
 
                 if row <= col:
@@ -228,7 +227,7 @@ def plot_dim_red(
                             ax.set_xlabel(f"Dim {col_label} ({evr})")
                         ax.xaxis.set_label_position("top")
                         ax.spines["top"].set_visible(True)
-                    if col == n_dims - 2:
+                    if col == n_plots - 1:
                         evr = np.format_float_scientific(
                             evr_array[int(row_label)],
                             precision=2,

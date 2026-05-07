@@ -13,10 +13,13 @@ from matplotlib.ticker import MultipleLocator
 from matplotlib.typing import ColorType
 from sklearn.decomposition import TruncatedSVD
 
+from ._qc import cell_qc_postfilter, gene_qc_postfilter
+
 
 def dim_red(
     adata: ad.AnnData,
     n_dims: int = 50,
+    use_genes: str = None,
     key_added: str = "X_svd",
     random_state: int = 42,
 ) -> None:
@@ -25,35 +28,55 @@ def dim_red(
 
     Args:
         adata: adata object
-        n_dims: number of PCs to use (default: 50)
+        n_dims: number of dimensions to produce
+        use_genes: Boolean column in adata.var with True for genes to be used in dimensionality reduction.
         key_added: key in adata.obsm for function output
         random_state: random seed value
 
     Returns:
         Nothing, updates adata.obsm and adata.uns
     """
+    if use_genes is None:
+        adata_sub = adata
+    else:
+        if not use_genes in adata.var.columns:
+            raise KeyError(
+                f"{use_genes} not found in adata.var.columns. "
+                "Use an existing column name for use_genes"
+            )
+        if not pd.api.types.is_bool_dtype(adata.var[use_genes]):
+            raise ValueError(
+                f"adata.var[{use_genes}] is not boolean. "
+                "Use a column with bools to subset genes taken "
+                "along for dimensionality reduction"
+            )
+
+        adata_sub = adata[:, adata.var[use_genes]].copy()
+        cell_qc_postfilter(adata_sub)
+        gene_qc_postfilter(adata_sub)
+
     prefix, uns_key = key_added.split("_", 1)
     if prefix != "X" or len(uns_key) == 0:
         raise ValueError(f"{key_added=} must start with 'X_', e.g. 'X_svd'")
 
     layer = "binary"
-    if layer not in adata.layers:
+    if layer not in adata_sub.layers:
         raise KeyError(
             f"{layer=} not found in adata.layers. Please run st.pp.binarize first!"
         )
-    X = adata.layers[layer]
-    if "nFeature_RNA_postfilter" not in adata.obs.columns:
+    X = adata_sub.layers[layer]
+    if "nFeature_RNA_postfilter" not in adata_sub.obs.columns:
         raise KeyError(
             "nFeature_RNA_postfilter not in adata.obs. "
             "Please run st.pp.cell_qc_postfilter first!"
         )
-    cell_sums = adata.obs["nFeature_RNA_postfilter"].to_numpy(dtype=np.float32)
-    if "nCell_postfilter" not in adata.var.columns:
+    cell_sums = adata_sub.obs["nFeature_RNA_postfilter"].to_numpy(dtype=np.float32)
+    if "nCell_postfilter" not in adata_sub.var.columns:
         raise KeyError(
             "nCell_postfilter not in adata.var. "
             "Please run st.pp.gene_qc_postfilter first!"
         )
-    gene_counts = adata.var["nCell_postfilter"].to_numpy(dtype=np.float32)
+    gene_counts = adata_sub.var["nCell_postfilter"].to_numpy(dtype=np.float32)
     n_cells = X.shape[0]
 
     # Latent Semantic Indexing:
